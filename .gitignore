@@ -1,0 +1,22 @@
+# Node
+node_modules/
+dist/
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+.venv
+env/
+instance/
+.pytest_cache/
+*.db
+
+# OS
+.DS_Store
+Thumbs.db
+#other stuff
+.txt

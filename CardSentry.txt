@@ -1,0 +1,76 @@
+**CardSentry** is a premium-feeling, free credit card tool that validates numbers via Luhn algorithm, checks expiry/CVV/BIN details, *and generates test cards* for devs/e-commerce—mirroring chkr.cc with bulk support, retro polish, and safe generator. [chkr](https://chkr.cc)
+
+## Tech Stack
+- **Frontend**: React.js (plain JS, Vite), Tailwind CSS (retro CRT config), Axios, React Hook Form, Heroicons.
+- **Backend**: FastAPI, Pydantic, HTTPCX, SQLite (cache + gen storage).
+- **Deployment**: Vercel (frontend), Render (backend free tier).
+- **Other**: GitHub, CORS, slowapi. [dev](https://dev.to/gilly7/building-your-first-full-stack-crud-app-with-fastapi-and-reactjs-3i1n)
+
+## Backend Structure
+Modular FastAPI with validation + generation.
+
+- **Core Endpoints (REST API)**:
+  | Endpoint | Method | Input | Output | Purpose |
+  |----------|--------|-------|--------|---------|
+  | `/validate` | POST | `{"cards": [{"number": str, "exp_month": int, "exp_year": int, "cvv": str}]}` | Array: `[{"valid_luhn": bool, "valid_exp": bool, "bin": {...}}]` | Validation + BIN. |
+  | `/generate` | POST | `{"count": int (1-50), "brand": str (visa/master), "type": str (credit/debit)}` | Array: `[{"number": str, "exp_month": int, "exp_year": int, "cvv": str}]` | Luhn-valid test cards. |
+  | `/health` | GET | - | `{"status": "ok"}` | Probe. |
+  | `/bulk` | POST | Cards array | Results array | Bulk validate. |
+
+- **Logic Flow**:
+  1. **Validate**: As before (Luhn/expiry/BIN cache).
+  2. **Generate**: Server-side Luhn gen (random BINs from common test ranges: Visa 4xxx, MC 5xxx; future expiry; rand CVV). Store recent gens in SQLite for history.
+  3. Cache/rate: 30/min; gen limited to prevent abuse.
+
+- **Premade/Free APIs**: BIN lookups same (binlist.net primary). [binlist](https://binlist.net)
+- **Dependencies**: Same + `faker` for rand (pip install faker).
+- **Config**: `.env` keys.
+
+## Unique UI/UX Design
+Retro CRT/punch-card: Charcoal/teal/green/crimson; scanlines, glow sweep. Dual tabs: "Validate" (punch-card input/bulk) vs "Generate" (sliders for count/brand/type, "punch out" button extrudes cards). Gen results: Printer-stack animation (cards eject one-by-one). Shared flip-grid table (add "Generated" badge). Copy/export all. [chkr](https://chkr.cc)
+
+## Project Structure
+```
+cardsentry/
+├── backend/
+│   ├── app/
+│   │   ├── main.py              # Routes incl /generate
+│   │   ├── models.py            # + GenRequest
+│   │   ├── services/
+│   │   │   ├── validator.py
+│   │   │   ├── generator.py     # Luhn gen logic
+│   │   │   └── bin_lookup.py
+│   │   ├── database.py          # + gen_history
+│   │   └── middleware.py
+│   ├── requirements.txt         # + faker
+│   ├── .env.example
+│   └── Dockerfile
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── ValidatorForm.jsx
+│   │   │   ├── GeneratorForm.jsx # New: sliders/dropdowns
+│   │   │   ├── ResultsTable.jsx
+│   │   │   └── ScanBeam.jsx
+│   │   ├── hooks/
+│   │   │   ├── useValidate.js
+│   │   │   └── useGenerate.js   # New Axios hook
+│   │   ├── App.jsx              # Tabs switch
+│   │   └── index.css
+│   ├── tailwind.config.js
+│   ├── vite.config.js
+│   └── package.json
+├── README.md
+└── .gitignore
+```
+
+## Full Development Plan
+1. **Setup (30min)**: Monorepo; backend deps + faker; frontend npm i.
+2. **Backend (2.5h)**: Existing validate; add generator.py (Luhn gen: pick brand BIN prefix, rand digits, compute check digit); /generate endpoint; test.
+3. **Frontend (4h)**: Tabs (Validate/Generate); GeneratorForm (sliders: count 1-50, dropdowns Visa/MC/Amex/Credit/Debit); useGenerate.js hook; unified ResultsTable (mode prop).
+4. **Integrate/Test (1h)**: Bulk/gen flows; samples (gen Visa -> validate).
+5. **Polish (1h)**: Eject animation (CSS keyframes stack); gen history fetch.
+6. **Deploy (30min)**: Push; update README w/ gen disclaimer ("test only, no real charges").
+7. **Extras**: BIN filter on gen; CSV w/ mode.
+
+Total: 9-10h. Test cards never charge—dev-safe. [codeglimpse](https://www.codeglimpse.com/posts/understanding-the-luhn-algorithm-with-javascript)á
