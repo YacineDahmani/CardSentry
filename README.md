@@ -1,67 +1,195 @@
 # CardSentry
 
-CardSentry is a professional credit card utility for developers and testers. It provides validation via the Luhn algorithm, expiry/BIN analysis, and a built-in test card generator.
+CardSentry is a developer-focused credit card utility for generating and validating test card data. It combines a FastAPI backend, a React/Vite frontend, local SQLite caching, and optional BIN enrichment through a third-party lookup service.
 
-## Project Structure
+## What It Does
+
+- Validates card data with Luhn, expiry, and CVV checks.
+- Enriches validation results with BIN metadata when available.
+- Generates Luhn-valid test cards for supported brands.
+- Persists generated cards locally so you can inspect recent output.
+- Exposes a browser UI with separate validator and generator modules.
+
+## Stack
+
+- Backend: FastAPI, Pydantic, httpx, SlowAPI, SQLite, python-dotenv.
+- Frontend: React, Vite, Axios, Tailwind CSS, Heroicons.
+
+## Repository Layout
+
 ```text
-cardsentry/
+CardSentry/
 ├── backend/
 │   ├── app/
-│   │   ├── main.py              # Application entry and routing
-│   │   ├── models.py            # Data models and validation logic
-│   │   ├── services/            # Core business logic
-│   │   │   ├── validator.py     # Luhn and card validation
-│   │   │   ├── generator.py     # Test card generation
-│   │   │   └── bin_lookup.py    # BIN information retrieval
-│   │   ├── database.py          # SQLite integration for history/cache
-│   │   └── middleware.py        # Security and rate limiting
-│   └── requirements.txt         # Backend dependencies
+│   │   ├── main.py
+│   │   ├── database.py
+│   │   ├── middleware.py
+│   │   ├── models.py
+│   │   └── services/
+│   │       ├── bin_lookup.py
+│   │       ├── generator.py
+│   │       └── validator.py
+│   └── requirements.txt
 ├── frontend/
 │   ├── src/
-│   │   ├── components/          # Reusable UI components
-│   │   ├── hooks/               # Custom React hooks for API interaction
-│   │   ├── App.jsx              # Main application orchestrator
-│   │   └── index.css            # Global styles and Tailwind configuration
-│   ├── tailwind.config.js       # Custom retro theme settings
-│   ├── vite.config.js           # Frontend build configuration
-│   └── package.json             # Frontend dependencies
-└── README.md                    # Project documentation
+│   │   ├── App.jsx
+│   │   ├── index.css
+│   │   ├── main.jsx
+│   │   ├── components/
+│   │   └── hooks/
+│   ├── package.json
+│   ├── tailwind.config.js
+│   └── vite.config.js
+└── README.md
 ```
 
-## Tech Stack
-### Frontend
-- **React.js (Vite)**: For a fast and responsive user experience.
-- **Tailwind CSS**: Custom retro-themed styling (CRT/Punch-card aesthetic).
-- **Axios**: Promised-based HTTP requests for API communication.
-- **React Hook Form**: Simplified form management.
-- **Heroicons**: Clean, modern icons for navigation.
+## Requirements
 
-### Backend
-- **FastAPI**: High-performance, secure asynchronous web framework.
-- **SQLite**: Lightweight database for caching and session management.
-- **Pydantic**: Robust data validation and settings management.
-- **SlowAPI**: Integrated rate limiting to ensure API stability.
-- **Faker**: Used for generating realistic-looking test data.
+- Python 3.11+ recommended
+- Node.js 18+
+- npm
 
-## Features
-- **Validation**: Check card numbers against the Luhn algorithm, expiry consistency, and BIN details.
-- **Generation**: Generate valid test card numbers (Visa, Mastercard, etc.) for testing environments.
-- **Bulk Processing**: Perform validation on multiple card entries simultaneously.
-- **Design**: Retro-inspired UI with a professional charcoal, teal, and green color palette.
+## Setup
 
-## Getting Started
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/YacineDahmani/CardSentry.git
-   ```
-2. **Setup Backend**
-   - Navigate to `backend/`
-   - Run `pip install -r requirements.txt`
-   - Start with `uvicorn app.main:app --reload`
-3. **Setup Frontend**
-   - Navigate to `frontend/`
-   - Run `npm install`
-   - Start with `npm run dev`
+### 1. Backend
+
+```bash
+cd backend
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+Create a backend environment file at `backend/.env`:
+
+```env
+CORS_ORIGINS=*
+HANDYAPI_SECRET_KEY=your_optional_bin_lookup_key
+```
+
+Start the API:
+
+```bash
+uvicorn app.main:app --reload
+```
+
+The API runs at `http://localhost:8000` by default.
+
+### 2. Frontend
+
+```bash
+cd frontend
+npm install
+```
+
+Create `frontend/.env` if you want to point the UI at a custom API URL:
+
+```env
+VITE_API_URL=http://localhost:8000
+```
+
+Start the app:
+
+```bash
+npm run dev
+```
+
+## How It Works
+
+### Validator
+
+Paste one or more card lines in this format:
+
+```text
+number | MM/YY | CVV
+```
+
+The validator will:
+
+- sanitize the number
+- detect the brand
+- check Luhn validity
+- validate expiry and CVV formatting
+- fetch BIN metadata when a lookup is available
+- report external consistency status
+
+### Generator
+
+Choose a brand and card type, then optionally provide:
+
+- BIN prefix
+- expiry month and year
+- CVV
+
+Supported brands:
+
+- Visa
+- Mastercard
+- Amex
+- Discover
+
+Generated cards are stored in local SQLite history and exposed in the UI for copy/export workflows.
+
+## API Reference
+
+### `GET /health`
+
+Returns the API status.
+
+### `POST /validate`
+
+Validates a batch of cards.
+
+Request:
+
+```json
+{
+   "cards": [
+      {
+         "number": "4532110044529901",
+         "exp_month": 12,
+         "exp_year": 2026,
+         "cvv": "993"
+      }
+   ]
+}
+```
+
+### `POST /bulk`
+
+Alias for `/validate`.
+
+### `POST /generate`
+
+Generates test cards.
+
+Request fields:
+
+- `count` - 1 to 50
+- `brand` - `visa`, `mastercard`, `amex`, or `discover`
+- `type` - `credit` or `debit`
+- `bin` - optional 6 to 12 digit BIN prefix
+- `exp_month` / `exp_year` - optional paired expiry override
+- `cvv` - optional brand-appropriate CVV override
+
+### `GET /generate/history?limit=100`
+
+Returns the most recent generated cards from SQLite.
+
+## Behavior Notes
+
+- BIN lookups are cached locally in `cardsentry.db`.
+- Validation and generation endpoints are rate-limited.
+- If BIN lookup is unavailable, validation still completes and reports partial results.
+- The frontend can be pointed at a different backend through `VITE_API_URL`.
+
+## Project Notes
+
+- Validation logic lives in `backend/app/services/validator.py`.
+- Generation logic lives in `backend/app/services/generator.py`.
+- BIN lookup and caching live in `backend/app/services/bin_lookup.py` and `backend/app/database.py`.
+- The UI is split into `ValidatorModule` and `GeneratorModule` in `frontend/src/components/`.
 
 ## Disclaimer
-All generated card numbers are intended solely for development and testing purposes. These are not real credit cards and cannot be used for any actual monetary transactions.
+
+CardSentry is intended for development and testing only. Generated card numbers are not real payment cards and cannot be used for actual transactions.
