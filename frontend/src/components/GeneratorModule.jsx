@@ -25,11 +25,23 @@ export const GeneratorModule = () => {
   const [count, setCount] = useState(10);
   const [brand, setBrand] = useState('visa');
   const [cardType, setCardType] = useState('credit');
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [bin, setBin] = useState('');
+  const [expMonth, setExpMonth] = useState('');
+  const [expYear, setExpYear] = useState('');
+  const [cvv, setCvv] = useState('');
   const { cards, loading, error, generate, clearCards } = useGenerate();
 
   async function handleGenerate() {
     const safeCount = Math.max(1, Math.min(50, count));
-    await generate(safeCount, brand, cardType);
+    const payload = {};
+    if (bin.trim()) payload.bin = bin.trim();
+    if (expMonth.trim() || expYear.trim()) {
+      payload.exp_month = parseInt(expMonth, 10);
+      payload.exp_year = parseInt(expYear, 10);
+    }
+    if (cvv.trim()) payload.cvv = cvv.trim();
+    await generate(safeCount, brand, cardType, payload);
   }
 
   function handleCopyAll() {
@@ -112,6 +124,65 @@ export const GeneratorModule = () => {
                 <option value="debit">DEBIT</option>
               </select>
             </div>
+          </div>
+
+          <div className="pt-2 border-t border-surface-container-high">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced((v) => !v)}
+              className="text-xs font-mono uppercase tracking-widest text-gray-400 hover:text-primary transition-colors"
+            >
+              {showAdvanced ? 'Hide Advanced Options' : 'Show Advanced Options'}
+            </button>
+
+            {showAdvanced && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <div className="flex flex-col gap-2">
+                  <label className="text-gray-400 uppercase tracking-widest text-xs font-mono">BIN</label>
+                  <input
+                    type="text"
+                    value={bin}
+                    onChange={(e) => setBin(e.target.value.replace(/\D/g, '').slice(0, 12))}
+                    placeholder="e.g. 453211"
+                    className="w-full bg-surface-container-lowest text-primary font-mono text-sm p-3 outline-none border border-outline-variant"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-gray-400 uppercase tracking-widest text-xs font-mono">CVV</label>
+                  <input
+                    type="text"
+                    value={cvv}
+                    onChange={(e) => setCvv(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    placeholder="3 or 4 digits"
+                    className="w-full bg-surface-container-lowest text-primary font-mono text-sm p-3 outline-none border border-outline-variant"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-gray-400 uppercase tracking-widest text-xs font-mono">EXP MONTH</label>
+                  <input
+                    type="number"
+                    value={expMonth}
+                    onChange={(e) => setExpMonth(e.target.value)}
+                    min={1}
+                    max={12}
+                    placeholder="MM"
+                    className="w-full bg-surface-container-lowest text-primary font-mono text-sm p-3 outline-none border border-outline-variant"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-gray-400 uppercase tracking-widest text-xs font-mono">EXP YEAR</label>
+                  <input
+                    type="number"
+                    value={expYear}
+                    onChange={(e) => setExpYear(e.target.value)}
+                    min={2000}
+                    max={2100}
+                    placeholder="YYYY"
+                    className="w-full bg-surface-container-lowest text-primary font-mono text-sm p-3 outline-none border border-outline-variant"
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

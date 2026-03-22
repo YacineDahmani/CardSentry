@@ -33,6 +33,10 @@ function formatNumber(num) {
   return num.replace(/(.{4})/g, '$1 ').trim();
 }
 
+function formatExpiry(month, year) {
+  return `${String(month).padStart(2, '0')}/${String(year).slice(-2)}`;
+}
+
 function brandIcon(brand) {
   if (brand === 'amex') return <ShieldCheckIcon className="w-5 h-5 text-gray-400" />;
   return <CreditCardIcon className="w-5 h-5 text-gray-400" />;
@@ -41,6 +45,11 @@ function brandIcon(brand) {
 export const ValidatorModule = () => {
   const [input, setInput] = useState('');
   const { results, loading, error, validate, clearResults } = useValidate();
+
+  async function copyCard(result) {
+    const cardLine = `${formatNumber(result.number)} | ${formatExpiry(result.exp_month, result.exp_year)} | ${result.cvv}`;
+    await navigator.clipboard.writeText(cardLine);
+  }
 
   async function handleScan() {
     const cards = parseCardLines(input);
@@ -107,14 +116,14 @@ export const ValidatorModule = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {results.map((result, idx) => {
-              const isValid = result.valid_luhn && result.valid_exp && result.valid_cvv;
+              const isValid = result.valid_luhn && result.valid_exp && result.valid_cvv && result.valid_external !== false;
               const status = isValid ? 'VALID' : 'INVALID';
-              const last4 = result.number.slice(-4);
               const brand = (result.brand || 'unknown').toUpperCase();
               const errors = [];
               if (!result.valid_luhn) errors.push('LUHN_FAIL');
               if (!result.valid_exp) errors.push('EXP_INVALID');
               if (!result.valid_cvv) errors.push('CVV_INVALID');
+              if (result.valid_external === false) errors.push('EXTERNAL_FAIL');
 
               return (
                 <Card key={idx} className={`p-6 relative overflow-hidden border-l-4 ${isValid ? 'border-l-secondary' : 'border-l-tertiary text-gray-500'}`}>
@@ -128,11 +137,10 @@ export const ValidatorModule = () => {
                   </div>
 
                   <div className="space-y-4">
-                    <div className={`font-mono text-xl tracking-[0.2em] flex justify-between ${!isValid ? 'line-through text-gray-500' : 'text-gray-200'}`}>
-                      <span>****</span>
-                      <span>****</span>
-                      <span>****</span>
-                      <span className={isValid ? 'text-white' : ''}>{last4}</span>
+                    <div className={`font-mono text-base tracking-wider ${!isValid ? 'text-gray-500' : 'text-gray-200'}`}>
+                      <div>NUMBER: <span className="text-white">{formatNumber(result.number)}</span></div>
+                      <div>EXP: <span className="text-white">{formatExpiry(result.exp_month, result.exp_year)}</span></div>
+                      <div>CVV: <span className="text-white">{result.cvv}</span></div>
                     </div>
 
                     <div className="flex justify-between text-xs font-mono text-gray-400 font-bold uppercase pt-2">
@@ -145,10 +153,12 @@ export const ValidatorModule = () => {
                     </div>
 
                     {result.bin && (
-                      <div className="flex justify-between text-[0.65rem] font-mono text-gray-600 uppercase border-t border-surface-container-high pt-4 mt-4">
-                        <span>SCHEME: {result.bin.scheme || '—'}</span>
-                        <span>COUNTRY: {result.bin.country || '—'}</span>
-                        <span>BANK: {result.bin.bank || '—'}</span>
+                      <div className="text-[0.65rem] font-mono text-gray-500 uppercase border-t border-surface-container-high pt-4 mt-4 space-y-1">
+                        <div>SCHEME: {result.bin.scheme || '—'}</div>
+                        <div>BIN BRAND: {result.bin.brand || '—'}</div>
+                        <div>BIN TYPE: {result.bin.type || '—'}</div>
+                        <div>COUNTRY: {result.bin.country || '—'}</div>
+                        <div>BANK: {result.bin.bank || '—'}</div>
                       </div>
                     )}
 
@@ -156,6 +166,25 @@ export const ValidatorModule = () => {
                       <div className="flex justify-between text-[0.65rem] font-mono text-gray-600 uppercase border-t border-surface-container-high pt-4 mt-4">
                         <span>BIN: {result.number.slice(0, 6)}</span>
                         <span>BRAND: {brand}</span>
+                      </div>
+                    )}
+
+                    <div className="border-t border-surface-container-high pt-4 mt-4 flex justify-between items-center">
+                      <span className="text-[0.65rem] font-mono uppercase text-gray-500">
+                        EXT: {result.external_status || 'n/a'}
+                      </span>
+                      <Button
+                        variant="secondary"
+                        className="text-xs py-1 px-3 border border-outline-variant"
+                        onClick={() => copyCard(result)}
+                      >
+                        COPY_CARD
+                      </Button>
+                    </div>
+
+                    {result.external_issues?.length > 0 && (
+                      <div className="text-[0.65rem] font-mono text-tertiary uppercase">
+                        {result.external_issues.join(' | ')}
                       </div>
                     )}
                   </div>

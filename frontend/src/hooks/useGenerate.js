@@ -8,7 +8,7 @@ export function useGenerate() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  async function generate(count, brand, type) {
+  async function generate(count, brand, type, options = {}) {
     setLoading(true);
     setError(null);
     try {
@@ -16,6 +16,7 @@ export function useGenerate() {
         count,
         brand,
         type,
+        ...options,
       });
       setCards((prev) => [...response.data, ...prev]);
       return response.data;

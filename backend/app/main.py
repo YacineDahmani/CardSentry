@@ -1,14 +1,14 @@
 import os
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Query, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 
 from app.database import get_generation_history, init_db, store_generated_cards
 from app.middleware import configure_cors, configure_rate_limiter
 from app.models import GenerateRequest, ValidateRequest
 from app.services.bin_lookup import lookup_bin
 from app.services.generator import generate_cards
-from app.services.validator import sanitize_number, validate_card
+from app.services.validator import evaluate_external_consistency, sanitize_number, validate_card
 
 
 load_dotenv()
@@ -38,7 +38,12 @@ async def validate(payload: ValidateRequest, request: Request) -> list[dict]:
 	for card in payload.cards:
 		result = validate_card(card.number, card.exp_month, card.exp_year, card.cvv)
 		bin_number = sanitize_number(card.number)[:6]
-		result["bin"] = await lookup_bin(bin_number)
+		bin_info = await lookup_bin(bin_number)
+		result["bin"] = bin_info
+		valid_external, external_status, external_issues = evaluate_external_consistency(result, bin_info)
+		result["valid_external"] = valid_external
+		result["external_status"] = external_status
+		result["external_issues"] = external_issues
 		results.append(result)
 	return results
 
@@ -52,7 +57,18 @@ async def bulk_validate(payload: ValidateRequest, request: Request) -> list[dict
 @app.post("/generate")
 @limiter.limit("20/minute")
 async def generate(payload: GenerateRequest, request: Request) -> list[dict]:
-	cards = generate_cards(payload.count, payload.brand, payload.type)
+	try:
+		cards = generate_cards(
+			payload.count,
+			payload.brand,
+			payload.type,
+			payload.bin,
+			payload.exp_month,
+			payload.exp_year,
+			payload.cvv,
+		)
+	except ValueError as exc:
+		raise HTTPException(status_code=400, detail=str(exc)) from exc
 	store_generated_cards(cards)
 	return cards
 

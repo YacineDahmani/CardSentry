@@ -23,6 +23,10 @@ class GenerateRequest(BaseModel):
 	count: int = Field(default=1, ge=1, le=50)
 	brand: GenerateBrand = "visa"
 	type: CardType = "credit"
+	bin: str | None = Field(default=None, min_length=6, max_length=12)
+	exp_month: int | None = Field(default=None, ge=1, le=12)
+	exp_year: int | None = Field(default=None, ge=2000, le=2100)
+	cvv: str | None = Field(default=None, min_length=3, max_length=4)
 
 
 class BinInfo(BaseModel):
@@ -36,10 +40,16 @@ class BinInfo(BaseModel):
 
 class ValidationResult(BaseModel):
 	number: str
+	exp_month: int
+	exp_year: int
+	cvv: str
 	brand: CardBrand
 	valid_luhn: bool
 	valid_exp: bool
 	valid_cvv: bool
+	valid_external: bool | None = None
+	external_status: str | None = None
+	external_issues: list[str] = Field(default_factory=list)
 	bin: BinInfo | None = None
 
 
