@@ -1,3 +1,4 @@
+import asyncio
 import os
 
 from dotenv import load_dotenv
@@ -34,17 +35,26 @@ async def health() -> dict[str, str]:
 @app.post("/validate")
 @limiter.limit("30/minute")
 async def validate(payload: ValidateRequest, request: Request) -> list[dict]:
-	results: list[dict] = []
-	for card in payload.cards:
-		result = validate_card(card.number, card.exp_month, card.exp_year, card.cvv)
-		bin_number = sanitize_number(card.number)[:6]
-		bin_info = await lookup_bin(bin_number)
+	results = [
+		validate_card(card.number, card.exp_month, card.exp_year, card.cvv)
+		for card in payload.cards
+	]
+
+	bin_numbers = [sanitize_number(card.number)[:6] for card in payload.cards]
+	unique_bins = list(dict.fromkeys(bin_numbers))
+	bin_tasks = {bin_number: lookup_bin(bin_number) for bin_number in unique_bins}
+
+	bin_results = await asyncio.gather(*bin_tasks.values()) if bin_tasks else []
+	bin_lookup_map = dict(zip(bin_tasks.keys(), bin_results))
+
+	for result, bin_number in zip(results, bin_numbers):
+		bin_info = bin_lookup_map.get(bin_number)
 		result["bin"] = bin_info
 		valid_external, external_status, external_issues = evaluate_external_consistency(result, bin_info)
 		result["valid_external"] = valid_external
 		result["external_status"] = external_status
 		result["external_issues"] = external_issues
-		results.append(result)
+
 	return results
 
 

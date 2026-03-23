@@ -111,6 +111,9 @@ export const GeneratorModule = () => {
                 <option value="mastercard">MASTERCARD</option>
                 <option value="amex">AMEX</option>
                 <option value="discover">DISCOVER</option>
+                <option value="jcb">JCB</option>
+                <option value="diners_club">DINER'S CLUB</option>
+                <option value="maestro">MAESTRO</option>
               </select>
             </div>
             <div className="flex flex-col gap-2">

@@ -9,6 +9,9 @@ BRAND_PREFIXES = {
 	"mastercard": ["51", "52", "53", "54", "55"],
 	"amex": ["34", "37"],
 	"discover": ["6011", "65"],
+	"jcb": ["3528", "3530", "3589"],
+	"diners_club": ["300", "301", "302", "303", "304", "305", "36", "38", "39"],
+	"maestro": ["50", "56", "57", "58", "60", "63", "67"],
 }
 
 BRAND_LENGTH = {
@@ -16,6 +19,9 @@ BRAND_LENGTH = {
 	"mastercard": 16,
 	"amex": 15,
 	"discover": 16,
+	"jcb": 16,
+	"diners_club": 14,
+	"maestro": 16,
 }
 
 
@@ -52,7 +58,7 @@ def _generate_number_from_prefix(prefix: str, length: int) -> str:
 
 
 def _generate_expiry() -> tuple[int, int]:
-	now = datetime.utcnow()
+	now = datetime.now()
 	year = random.randint(now.year, now.year + 6)
 	month = random.randint(1, 12)
 	if year == now.year and month < now.month:
@@ -94,7 +100,7 @@ def _resolve_expiry(exp_month: int | None, exp_year: int | None) -> tuple[int, i
 		raise ValueError("exp_month and exp_year must be provided together")
 	if not 1 <= exp_month <= 12:
 		raise ValueError("exp_month must be between 1 and 12")
-	now = datetime.utcnow()
+	now = datetime.now()
 	if exp_year < now.year or (exp_year == now.year and exp_month < now.month):
 		raise ValueError("Provided expiry date is in the past")
 	return exp_month, exp_year
