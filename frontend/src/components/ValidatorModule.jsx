@@ -87,6 +87,7 @@ function brandIcon(brand) {
 export const ValidatorModule = () => {
   const [input, setInput] = useState('');
   const [isDragOver, setIsDragOver] = useState(false);
+  const [scanTotal, setScanTotal] = useState(0);
   const fileInputRef = useRef(null);
   const { results, loading, error, validate, clearResults } = useValidate();
   const { success, error: notifyError, info } = useToast();
@@ -97,12 +98,19 @@ export const ValidatorModule = () => {
   }, [error]);
 
   useEffect(() => {
-    if (results.length === 0) return;
+    if (loading || results.length === 0) return;
     const validCount = results.filter(
-      (result) => result.valid_luhn && result.valid_exp && result.valid_cvv && result.valid_external !== false
+      (result) => result.valid_luhn && result.valid_exp && result.valid_cvv && result.valid_external === true
     ).length;
-    success('Scan complete', `${validCount}/${results.length} cards passed all checks`);
-  }, [results]);
+    const localOnlyCount = results.filter(
+      (result) =>
+        result.valid_luhn &&
+        result.valid_exp &&
+        result.valid_cvv &&
+        (result.valid_external === null || typeof result.valid_external === 'undefined')
+    ).length;
+    success('Scan complete', `${validCount}/${results.length} cards passed all checks (${localOnlyCount} local-only)`);
+  }, [loading, results]);
 
   async function copyCard(result) {
     const cardLine = `${formatNumber(result.number)} | ${formatExpiry(result.exp_month, result.exp_year)} | ${result.cvv}`;
@@ -172,6 +180,7 @@ export const ValidatorModule = () => {
       info('No valid cards found', 'Use format: number | MM/YY | CVV');
       return;
     }
+    setScanTotal(cards.length);
     await validate(cards);
   }
 
@@ -182,7 +191,11 @@ export const ValidatorModule = () => {
           <h1 className="text-display-lg font-display uppercase tracking-tighter text-white">Card_Validation_Module</h1>
           <p className="text-label-md font-mono text-gray-500 mt-2 uppercase">Input Card Datasets for Verification Scan</p>
         </div>
-        {results.length > 0 && (
+        {loading && scanTotal > 0 ? (
+          <div className="text-label-md font-mono text-primary bg-surface-container border border-primary/60 px-3 py-1 uppercase">
+            VALIDATED: {results.length} OF {scanTotal}
+          </div>
+        ) : results.length > 0 && (
           <div className="text-label-md font-mono text-gray-400 bg-surface-container border border-outline-variant px-3 py-1">
             RESULTS: {results.length}
           </div>
@@ -236,7 +249,7 @@ export const ValidatorModule = () => {
             <Button
               variant="ghost"
               className="text-sm px-4 py-3"
-              onClick={() => { clearResults(); setInput(''); }}
+              onClick={() => { clearResults(); setInput(''); setScanTotal(0); }}
             >
               CLEAR
             </Button>
@@ -253,28 +266,37 @@ export const ValidatorModule = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {results.map((result, idx) => {
-              const isValid = result.valid_luhn && result.valid_exp && result.valid_cvv && result.valid_external !== false;
-              const status = isValid ? 'VALID' : 'INVALID';
+              const localValid = result.valid_luhn && result.valid_exp && result.valid_cvv;
+              const externalKnown = result.valid_external === true || result.valid_external === false;
+              const externalValid = result.valid_external === true;
+              const isValid = localValid && externalValid;
+              const status = isValid ? 'VALID' : localValid && !externalKnown ? 'LOCAL_ONLY' : 'INVALID';
               const brand = (result.brand || 'unknown').toUpperCase();
               const errors = [];
               if (!result.valid_luhn) errors.push('LUHN_FAIL');
               if (!result.valid_exp) errors.push('EXP_INVALID');
               if (!result.valid_cvv) errors.push('CVV_INVALID');
               if (result.valid_external === false) errors.push('EXTERNAL_FAIL');
+              if (localValid && !externalKnown) errors.push('EXTERNAL_UNAVAILABLE');
 
               return (
-                <Card key={idx} className={`p-6 relative overflow-hidden border-l-4 ${isValid ? 'border-l-secondary' : 'border-l-tertiary text-gray-500'}`}>
+                <Card
+                  key={idx}
+                  className={`p-6 relative overflow-hidden border-l-4 ${
+                    isValid ? 'border-l-secondary' : status === 'LOCAL_ONLY' ? 'border-l-primary' : 'border-l-tertiary text-gray-500'
+                  }`}
+                >
                   <div className="flex justify-between items-start mb-6 w-full">
                     <span className={`px-2 py-1 text-xs font-mono border ${
-                      isValid ? 'border-secondary text-secondary' : 'border-tertiary text-tertiary'
+                      isValid ? 'border-secondary text-secondary' : status === 'LOCAL_ONLY' ? 'border-primary text-primary' : 'border-tertiary text-tertiary'
                     }`}>
                       STATUS: {status}
                     </span>
-                    {isValid ? brandIcon(result.brand) : <ExclamationTriangleIcon className="w-5 h-5 text-tertiary" />}
+                    {isValid || status === 'LOCAL_ONLY' ? brandIcon(result.brand) : <ExclamationTriangleIcon className="w-5 h-5 text-tertiary" />}
                   </div>
 
                   <div className="space-y-4">
-                    <div className={`font-mono text-base tracking-wider ${!isValid ? 'text-gray-500' : 'text-gray-200'}`}>
+                    <div className={`font-mono text-base tracking-wider ${status === 'INVALID' ? 'text-gray-500' : 'text-gray-200'}`}>
                       <div>NUMBER: <span className="text-white">{formatNumber(result.number)}</span></div>
                       <div>EXP: <span className="text-white">{formatExpiry(result.exp_month, result.exp_year)}</span></div>
                       <div>CVV: <span className="text-white">{result.cvv}</span></div>

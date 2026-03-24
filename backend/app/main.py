@@ -1,8 +1,10 @@
 import asyncio
+import json
 import os
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import StreamingResponse
 
 from app.database import get_generation_history, init_db, store_generated_cards
 from app.middleware import configure_cors, configure_rate_limiter
@@ -56,6 +58,24 @@ async def validate(payload: ValidateRequest, request: Request) -> list[dict]:
 		result["external_issues"] = external_issues
 
 	return results
+
+
+@app.post("/validate/stream")
+@limiter.limit("30/minute")
+async def validate_stream(payload: ValidateRequest, request: Request) -> StreamingResponse:
+	async def iter_results():
+		for card in payload.cards:
+			result = validate_card(card.number, card.exp_month, card.exp_year, card.cvv)
+			bin_number = sanitize_number(card.number)[:6]
+			bin_info = await lookup_bin(bin_number)
+			result["bin"] = bin_info
+			valid_external, external_status, external_issues = evaluate_external_consistency(result, bin_info)
+			result["valid_external"] = valid_external
+			result["external_status"] = external_status
+			result["external_issues"] = external_issues
+			yield json.dumps(result) + "\n"
+
+	return StreamingResponse(iter_results(), media_type="application/x-ndjson")
 
 
 @app.post("/bulk")

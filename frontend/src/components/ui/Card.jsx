@@ -3,10 +3,13 @@ import React from 'react';
 export const Card = ({ children, className = '', ...props }) => {
   return (
     <div
-      className={`bg-surface-container noise-overlay clip-punch outline-variant border border-outline-variant ${className}`}
+      className={`bg-surface-container noise-overlay clip-punch outline-variant border border-outline-variant transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_30px_rgba(0,255,194,0.1)] group/card ${className}`}
       {...props}
     >
-      {children}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none" />
+      <div className="relative z-10">
+        {children}
+      </div>
     </div>
   );
 };

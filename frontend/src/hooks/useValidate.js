@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import axios from 'axios';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -13,12 +12,63 @@ export function useValidate() {
     setError(null);
     setResults([]);
     try {
-      const response = await axios.post(`${API_BASE}/validate`, { cards });
-      setResults(response.data);
-      return response.data;
+      const response = await fetch(`${API_BASE}/validate/stream`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cards }),
+      });
+
+      if (!response.ok) {
+        let detail = null;
+        try {
+          const payload = await response.json();
+          detail = payload?.detail;
+        } catch {
+          detail = null;
+        }
+        throw new Error(detail || `Validation failed with status ${response.status}`);
+      }
+
+      if (!response.body) {
+        const fallback = await response.json();
+        setResults(fallback);
+        return fallback;
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      const collected = [];
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const payload = line.trim();
+          if (!payload) continue;
+
+          const item = JSON.parse(payload);
+          collected.push(item);
+          setResults((prev) => [...prev, item]);
+        }
+      }
+
+      buffer += decoder.decode();
+      const tail = buffer.trim();
+      if (tail) {
+        const item = JSON.parse(tail);
+        collected.push(item);
+        setResults((prev) => [...prev, item]);
+      }
+
+      return collected;
     } catch (err) {
-      const message =
-        err.response?.data?.detail || err.message || 'Validation request failed';
+      const message = err?.message || 'Validation request failed';
       setError(message);
       return [];
     } finally {
