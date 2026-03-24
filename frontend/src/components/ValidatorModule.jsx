@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { CreditCardIcon, ExclamationTriangleIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
 import { useValidate } from '../hooks/useValidate';
+import { useToast } from './ui/RetroToast';
 
 function parseCardLines(text) {
   return text
@@ -29,6 +30,47 @@ function parseCardLines(text) {
     .filter(Boolean);
 }
 
+function parseCsvCards(text) {
+  const rows = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (rows.length === 0) return [];
+
+  const header = rows[0].toLowerCase();
+  const hasHeader =
+    header.includes('number') ||
+    header.includes('exp_month') ||
+    header.includes('exp_year') ||
+    header.includes('cvv');
+
+  const dataRows = hasHeader ? rows.slice(1) : rows;
+
+  return dataRows
+    .map((line) => {
+      const cols = line.split(',').map((c) => c.trim());
+      if (cols.length < 4) return null;
+
+      const number = cols[0].replace(/\s+/g, '');
+      const exp_month = parseInt(cols[1], 10);
+      let exp_year = parseInt(cols[2], 10);
+      const cvv = cols[3];
+
+      if (exp_year < 100) exp_year += 2000;
+      if (!number || isNaN(exp_month) || isNaN(exp_year) || !cvv) return null;
+
+      return { number, exp_month, exp_year, cvv };
+    })
+    .filter(Boolean);
+}
+
+function cardsToInputText(cards) {
+  return cards
+    .map((card) => `${card.number} | ${String(card.exp_month).padStart(2, '0')}/${String(card.exp_year).slice(-2)} | ${card.cvv}`)
+    .join('\n');
+}
+
 function formatNumber(num) {
   return num.replace(/(.{4})/g, '$1 ').trim();
 }
@@ -44,16 +86,92 @@ function brandIcon(brand) {
 
 export const ValidatorModule = () => {
   const [input, setInput] = useState('');
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef(null);
   const { results, loading, error, validate, clearResults } = useValidate();
+  const { success, error: notifyError, info } = useToast();
+
+  useEffect(() => {
+    if (!error) return;
+    notifyError('Validation failed', typeof error === 'string' ? error : JSON.stringify(error));
+  }, [error]);
+
+  useEffect(() => {
+    if (results.length === 0) return;
+    const validCount = results.filter(
+      (result) => result.valid_luhn && result.valid_exp && result.valid_cvv && result.valid_external !== false
+    ).length;
+    success('Scan complete', `${validCount}/${results.length} cards passed all checks`);
+  }, [results]);
 
   async function copyCard(result) {
     const cardLine = `${formatNumber(result.number)} | ${formatExpiry(result.exp_month, result.exp_year)} | ${result.cvv}`;
     await navigator.clipboard.writeText(cardLine);
+    success('Card copied', 'Card line copied to clipboard');
+  }
+
+  async function processFile(file) {
+    const allowedExt = ['txt', 'csv'];
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    if (!extension || !allowedExt.includes(extension)) {
+      notifyError('Unsupported file type', 'Please use a .txt or .csv file.');
+      return;
+    }
+
+    const text = await file.text();
+    const parsed = extension === 'csv' ? parseCsvCards(text) : parseCardLines(text);
+
+    if (parsed.length === 0) {
+      notifyError('No valid card rows found', 'Expected format: number | MM/YY | CVV or CSV columns number,exp_month,exp_year,cvv');
+      return;
+    }
+
+    setInput(cardsToInputText(parsed));
+    success('Card list imported', `${parsed.length} rows loaded from ${file.name}`);
+  }
+
+  async function handleFileInputChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      await processFile(file);
+    } catch (err) {
+      notifyError('File import failed', err?.message || 'Could not parse the file.');
+    } finally {
+      e.target.value = '';
+    }
+  }
+
+  function handleDragOver(e) {
+    e.preventDefault();
+    setIsDragOver(true);
+  }
+
+  function handleDragLeave(e) {
+    e.preventDefault();
+    setIsDragOver(false);
+  }
+
+  async function handleDrop(e) {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+
+    try {
+      await processFile(file);
+    } catch (err) {
+      notifyError('File import failed', err?.message || 'Could not parse the dropped file.');
+    }
   }
 
   async function handleScan() {
     const cards = parseCardLines(input);
-    if (cards.length === 0) return;
+    if (cards.length === 0) {
+      info('No valid cards found', 'Use format: number | MM/YY | CVV');
+      return;
+    }
     await validate(cards);
   }
 
@@ -73,6 +191,32 @@ export const ValidatorModule = () => {
 
       {/* Input Area */}
       <div className="relative">
+        <div
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`mb-4 border border-dashed p-3 font-mono text-xs uppercase tracking-wider transition-colors ${
+            isDragOver ? 'border-primary text-primary bg-primary/10' : 'border-outline-variant text-gray-500 bg-surface-container-lowest'
+          }`}
+        >
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <span>Drop .txt/.csv file here to populate card list</span>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="text-left md:text-right text-primary hover:text-secondary transition-colors"
+            >
+              Or click to browse
+            </button>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".txt,.csv,text/plain,text/csv"
+            className="hidden"
+            onChange={handleFileInputChange}
+          />
+        </div>
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -99,13 +243,6 @@ export const ValidatorModule = () => {
           )}
         </div>
       </div>
-
-      {/* Error */}
-      {error && (
-        <div className="text-tertiary font-mono text-sm bg-tertiary/10 border border-tertiary/30 p-4 mt-8 text-center">
-          ERR: {typeof error === 'string' ? error : JSON.stringify(error)}
-        </div>
-      )}
 
       {/* Scan Results */}
       {results.length > 0 && (

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { PrinterIcon, BoltIcon } from '@heroicons/react/24/outline';
 import { Button } from './ui/Button';
 import { useGenerate } from '../hooks/useGenerate';
+import { useToast } from './ui/RetroToast';
 
 function formatCardNumber(num) {
   return num.replace(/(.{4})/g, '$1 ').trim();
@@ -31,6 +32,24 @@ export const GeneratorModule = () => {
   const [expYear, setExpYear] = useState('');
   const [cvv, setCvv] = useState('');
   const { cards, loading, error, generate, clearCards } = useGenerate();
+  const prevCardCountRef = useRef(0);
+  const { success, error: notifyError, info } = useToast();
+
+  useEffect(() => {
+    if (!error) return;
+    notifyError('Generation failed', typeof error === 'string' ? error : JSON.stringify(error));
+  }, [error]);
+
+  useEffect(() => {
+    if (cards.length <= prevCardCountRef.current) {
+      prevCardCountRef.current = cards.length;
+      return;
+    }
+
+    const newCards = cards.length - prevCardCountRef.current;
+    prevCardCountRef.current = cards.length;
+    success('Cards generated', `${newCards} new cards added to console`);
+  }, [cards]);
 
   async function handleGenerate() {
     const safeCount = Math.max(1, Math.min(50, count));
@@ -50,6 +69,7 @@ export const GeneratorModule = () => {
       .map((c) => `${formatCardNumber(c.number)} | ${formatExp(c.exp_month, c.exp_year)} | ${c.cvv}`)
       .join('\n');
     navigator.clipboard.writeText(text);
+    success('Card batch copied', `${cards.length} cards copied to clipboard`);
   }
 
   function handleDownloadCSV() {
@@ -62,6 +82,12 @@ export const GeneratorModule = () => {
     a.download = `cardsentry_generated_${Date.now()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+    success('CSV downloaded', `${cards.length} cards exported`);
+  }
+
+  function handleClearConsole() {
+    clearCards();
+    info('Console cleared');
   }
 
   return (
@@ -202,13 +228,6 @@ export const GeneratorModule = () => {
         </div>
       </div>
 
-      {/* Error */}
-      {error && (
-        <div className="max-w-5xl mx-auto text-tertiary font-mono text-sm bg-tertiary/10 border border-tertiary/30 p-4 text-center">
-          ERR: {typeof error === 'string' ? error : JSON.stringify(error)}
-        </div>
-      )}
-
       {/* Console Output */}
       {cards.length > 0 && (
         <div className="max-w-5xl mx-auto pt-8">
@@ -231,7 +250,7 @@ export const GeneratorModule = () => {
             <div className="flex justify-center gap-4 mt-8">
               <Button variant="secondary" className="text-xs py-1 px-4 border border-outline-variant" onClick={handleCopyAll}>COPY_ALL</Button>
               <Button variant="secondary" className="text-xs py-1 px-4 border border-outline-variant" onClick={handleDownloadCSV}>DOWNLOAD_CSV</Button>
-              <Button variant="secondary" className="text-xs py-1 px-4 border border-tertiary text-tertiary bg-transparent hover:bg-tertiary/10" onClick={clearCards}>CLEAR_CONSOLE</Button>
+              <Button variant="secondary" className="text-xs py-1 px-4 border border-tertiary text-tertiary bg-transparent hover:bg-tertiary/10" onClick={handleClearConsole}>CLEAR_CONSOLE</Button>
             </div>
           </div>
         </div>
