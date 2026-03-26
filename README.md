@@ -49,6 +49,19 @@ CardSentry/
 - Node.js 18+
 - npm
 
+## Environment Configuration
+
+CardSentry uses environment variables for both backend and frontend. You should create `.env` files based on the provided `.env.example` templates in each respective directory.
+
+### Backend Variables (`backend/.env`)
+
+- `CORS_ORIGINS`: A comma-separated list of origins permitted to access the API. Use `*` to allow all (default for development) or `http://localhost:5173` for specific frontend mapping.
+- `HANDYAPI_SECRET_KEY`: (Optional) Your [HandyAPI](https://handyapi.com/) secret key for BIN lookup enrichment. If omitted, basic validation still works but BIN details will be unavailable.
+
+### Frontend Variables (`frontend/.env`)
+
+- `VITE_API_URL`: The base URL for the backend API (e.g., `http://localhost:8000`).
+
 ## Setup
 
 ### 1. Backend
@@ -60,11 +73,10 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-Create a backend environment file at `backend/.env`:
+Create your environment file:
 
-```env
-CORS_ORIGINS=*
-HANDYAPI_SECRET_KEY=your_optional_bin_lookup_key
+```bash
+cp .env.example .env
 ```
 
 Start the API:
@@ -82,10 +94,10 @@ cd frontend
 npm install
 ```
 
-Create `frontend/.env` if you want to point the UI at a custom API URL:
+Create your environment file:
 
-```env
-VITE_API_URL=http://localhost:8000
+```bash
+cp .env.example .env
 ```
 
 Start the app:
@@ -93,6 +105,7 @@ Start the app:
 ```bash
 npm run dev
 ```
+
 
 ## How It Works
 

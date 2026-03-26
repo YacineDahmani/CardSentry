@@ -73,11 +73,11 @@ def _generate_cvv(brand: str) -> str:
 
 def _resolve_brand(brand: str, bin_prefix: str | None) -> str:
 	if not bin_prefix:
-		return brand
+		return random.choice(list(BRAND_PREFIXES.keys())) if brand == "random" else brand
 	detected = detect_brand(bin_prefix)
 	if detected == "unknown":
-		return brand
-	if detected != brand:
+		return random.choice(list(BRAND_PREFIXES.keys())) if brand == "random" else brand
+	if brand != "random" and detected != brand:
 		raise ValueError(f"Provided BIN is not compatible with selected brand '{brand}'")
 	return detected
 
@@ -121,13 +121,13 @@ def generate_cards(
 		if len(bin_prefix) < 6 or len(bin_prefix) > 12:
 			raise ValueError("BIN length must be between 6 and 12 digits")
 
-	resolved_brand = _resolve_brand(brand, bin_prefix)
-	card_length = BRAND_LENGTH[resolved_brand]
-	if bin_prefix and len(bin_prefix) >= card_length:
-		raise ValueError("BIN length must be shorter than card length")
-
 	cards: list[dict] = []
 	for _ in range(count):
+		resolved_brand = _resolve_brand(brand, bin_prefix)
+		card_length = BRAND_LENGTH[resolved_brand]
+		if bin_prefix and len(bin_prefix) >= card_length:
+			raise ValueError("BIN length must be shorter than card length")
+
 		resolved_month, resolved_year = _resolve_expiry(exp_month, exp_year)
 		number = (
 			_generate_number_from_prefix(bin_prefix, card_length)

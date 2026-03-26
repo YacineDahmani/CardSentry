@@ -2,6 +2,27 @@ import { useState } from 'react';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
+function buildValidateErrorMessage(err, statusCode) {
+  if (err instanceof SyntaxError) {
+    return 'Received malformed or incomplete data stream from the validation server.';
+  }
+
+  const message = typeof err?.message === 'string' ? err.message.trim() : '';
+
+  if (message) {
+    if (/Failed to fetch/i.test(message) || /NetworkError/i.test(message)) {
+      return 'Cannot reach API server. Start backend and verify VITE_API_URL.';
+    }
+    return message;
+  }
+
+  if (statusCode) {
+    return `Validation failed (HTTP ${statusCode}).`;
+  }
+
+  return 'Validation request failed due to an unknown error.';
+}
+
 export function useValidate() {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -11,18 +32,30 @@ export function useValidate() {
     setLoading(true);
     setError(null);
     setResults([]);
+    let responseStatus = null;
     try {
       const response = await fetch(`${API_BASE}/validate/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cards }),
       });
+      responseStatus = response.status;
 
       if (!response.ok) {
         let detail = null;
         try {
           const payload = await response.json();
-          detail = payload?.detail;
+          if (typeof payload?.detail === 'string') {
+            detail = payload.detail;
+          } else if (Array.isArray(payload?.detail)) {
+            detail = payload.detail
+              .map((entry) => {
+                const field = Array.isArray(entry?.loc) ? entry.loc.slice(1).join('.') : '';
+                return field ? `${field}: ${entry?.msg}` : entry?.msg;
+              })
+              .filter(Boolean)
+              .join(' | ');
+          }
         } catch {
           detail = null;
         }
@@ -68,7 +101,7 @@ export function useValidate() {
 
       return collected;
     } catch (err) {
-      const message = err?.message || 'Validation request failed';
+      const message = buildValidateErrorMessage(err, responseStatus);
       setError(message);
       return [];
     } finally {

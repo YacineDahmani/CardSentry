@@ -98,7 +98,15 @@ export const ValidatorModule = () => {
   }, [error]);
 
   useEffect(() => {
-    if (loading || results.length === 0) return;
+    if (loading) return;
+    
+    if (scanTotal > 0 && results.length === 0 && !error) {
+      info('Validation complete', 'The server returned zero valid results.');
+      return;
+    }
+    
+    if (results.length === 0) return;
+
     const validCount = results.filter(
       (result) => result.valid_luhn && result.valid_exp && result.valid_cvv && result.valid_external === true
     ).length;
@@ -109,7 +117,12 @@ export const ValidatorModule = () => {
         result.valid_cvv &&
         (result.valid_external === null || typeof result.valid_external === 'undefined')
     ).length;
-    success('Scan complete', `${validCount}/${results.length} cards passed all checks (${localOnlyCount} local-only)`);
+    
+    if (results.length < scanTotal && !error) {
+      info('Partial Scan Complete', `${results.length}/${scanTotal} cards checked before stream ended.`);
+    } else {
+      success('Scan complete', `${validCount}/${results.length} cards passed all checks (${localOnlyCount} unknown)`);
+    }
   }, [loading, results]);
 
   async function copyCard(result) {
@@ -181,6 +194,7 @@ export const ValidatorModule = () => {
       return;
     }
     setScanTotal(cards.length);
+    info('Scan Initiated', `Validating ${cards.length} cards...`);
     await validate(cards);
   }
 
@@ -270,7 +284,7 @@ export const ValidatorModule = () => {
               const externalKnown = result.valid_external === true || result.valid_external === false;
               const externalValid = result.valid_external === true;
               const isValid = localValid && externalValid;
-              const status = isValid ? 'VALID' : localValid && !externalKnown ? 'LOCAL_ONLY' : 'INVALID';
+              const status = isValid ? 'VALID' : localValid && !externalKnown ? 'UNKNOWN' : 'INVALID';
               const brand = (result.brand || 'unknown').toUpperCase();
               const errors = [];
               if (!result.valid_luhn) errors.push('LUHN_FAIL');
@@ -283,16 +297,16 @@ export const ValidatorModule = () => {
                 <Card
                   key={idx}
                   className={`p-6 relative overflow-hidden border-l-4 ${
-                    isValid ? 'border-l-secondary' : status === 'LOCAL_ONLY' ? 'border-l-primary' : 'border-l-tertiary text-gray-500'
+                    isValid ? 'border-l-secondary' : status === 'UNKNOWN' ? 'border-l-primary' : 'border-l-tertiary text-gray-500'
                   }`}
                 >
                   <div className="flex justify-between items-start mb-6 w-full">
                     <span className={`px-2 py-1 text-xs font-mono border ${
-                      isValid ? 'border-secondary text-secondary' : status === 'LOCAL_ONLY' ? 'border-primary text-primary' : 'border-tertiary text-tertiary'
+                      isValid ? 'border-secondary text-secondary' : status === 'UNKNOWN' ? 'border-primary text-primary' : 'border-tertiary text-tertiary'
                     }`}>
                       STATUS: {status}
                     </span>
-                    {isValid || status === 'LOCAL_ONLY' ? brandIcon(result.brand) : <ExclamationTriangleIcon className="w-5 h-5 text-tertiary" />}
+                    {isValid || status === 'UNKNOWN' ? brandIcon(result.brand) : <ExclamationTriangleIcon className="w-5 h-5 text-tertiary" />}
                   </div>
 
                   <div className="space-y-4">

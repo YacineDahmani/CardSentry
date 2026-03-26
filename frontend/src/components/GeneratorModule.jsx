@@ -22,9 +22,13 @@ function cardsToCSV(cards) {
   return [header, ...rows].join('\n');
 }
 
+function sanitizeNumericInput(value, maxLength) {
+  return value.replace(/\D/g, '').slice(0, maxLength);
+}
+
 export const GeneratorModule = () => {
   const [count, setCount] = useState(10);
-  const [brand, setBrand] = useState('visa');
+  const [brand, setBrand] = useState('random');
   const [cardType, setCardType] = useState('credit');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [bin, setBin] = useState('');
@@ -54,12 +58,64 @@ export const GeneratorModule = () => {
   async function handleGenerate() {
     const safeCount = Math.max(1, Math.min(50, count));
     const payload = {};
-    if (bin.trim()) payload.bin = bin.trim();
-    if (expMonth.trim() || expYear.trim()) {
-      payload.exp_month = parseInt(expMonth, 10);
-      payload.exp_year = parseInt(expYear, 10);
+    const monthRaw = String(expMonth).trim();
+    const yearRaw = String(expYear).trim();
+    const binRaw = bin.trim();
+    const cvvRaw = cvv.trim();
+    const expectedCvvLength = brand === 'amex' ? 4 : 3;
+
+    if ((monthRaw && !yearRaw) || (!monthRaw && yearRaw)) {
+      notifyError('Invalid expiry', 'Enter both month and year, or leave both empty.');
+      return;
     }
-    if (cvv.trim()) payload.cvv = cvv.trim();
+
+    if (monthRaw && yearRaw) {
+      const parsedMonth = Number(monthRaw);
+      const parsedYear = Number(yearRaw);
+      const currentYear = new Date().getFullYear();
+
+      if (!Number.isInteger(parsedMonth) || parsedMonth < 1 || parsedMonth > 12) {
+        notifyError('Invalid month', 'Month must be a number between 1 and 12.');
+        return;
+      }
+
+      if (!Number.isInteger(parsedYear) || parsedYear < currentYear || parsedYear > 2100) {
+        notifyError('Invalid year', `Year must be between ${currentYear} and 2100.`);
+        return;
+      }
+
+      payload.exp_month = parsedMonth;
+      payload.exp_year = parsedYear;
+    }
+
+    if (binRaw) {
+      if (!/^\d+$/.test(binRaw)) {
+        notifyError('Invalid BIN', 'BIN must contain only digits.');
+        return;
+      }
+
+      if (binRaw.length < 6 || binRaw.length > 12) {
+        notifyError('Invalid BIN length', 'BIN must be between 6 and 12 digits.');
+        return;
+      }
+
+      payload.bin = binRaw;
+    }
+
+    if (cvvRaw) {
+      if (!/^\d+$/.test(cvvRaw)) {
+        notifyError('Invalid CVV', 'CVV must contain only digits.');
+        return;
+      }
+
+      if (cvvRaw.length !== expectedCvvLength) {
+        notifyError('Invalid CVV length', `CVV must be ${expectedCvvLength} digits for ${brand.toUpperCase()}.`);
+        return;
+      }
+
+      payload.cvv = cvvRaw;
+    }
+
     await generate(safeCount, brand, cardType, payload);
   }
 
@@ -133,6 +189,7 @@ export const GeneratorModule = () => {
                 onChange={(e) => setBrand(e.target.value)}
                 className="w-full bg-surface-container-lowest text-primary font-mono text-sm p-3 outline-none border border-outline-variant cursor-pointer appearance-none"
               >
+                <option value="random">RANDOM</option>
                 <option value="visa">VISA</option>
                 <option value="mastercard">MASTERCARD</option>
                 <option value="amex">AMEX</option>
@@ -189,11 +246,12 @@ export const GeneratorModule = () => {
                 <div className="flex flex-col gap-2">
                   <label className="text-gray-400 uppercase tracking-widest text-xs font-mono">EXP MONTH</label>
                   <input
-                    type="number"
+                    type="text"
                     value={expMonth}
-                    onChange={(e) => setExpMonth(e.target.value)}
-                    min={1}
-                    max={12}
+                    onChange={(e) => setExpMonth(sanitizeNumericInput(e.target.value, 2))}
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={2}
                     placeholder="MM"
                     className="w-full bg-surface-container-lowest text-primary font-mono text-sm p-3 outline-none border border-outline-variant"
                   />
@@ -201,11 +259,12 @@ export const GeneratorModule = () => {
                 <div className="flex flex-col gap-2">
                   <label className="text-gray-400 uppercase tracking-widest text-xs font-mono">EXP YEAR</label>
                   <input
-                    type="number"
+                    type="text"
                     value={expYear}
-                    onChange={(e) => setExpYear(e.target.value)}
-                    min={2000}
-                    max={2100}
+                    onChange={(e) => setExpYear(sanitizeNumericInput(e.target.value, 4))}
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={4}
                     placeholder="YYYY"
                     className="w-full bg-surface-container-lowest text-primary font-mono text-sm p-3 outline-none border border-outline-variant"
                   />

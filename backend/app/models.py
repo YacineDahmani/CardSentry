@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 CardBrand = Literal["visa", "mastercard", "amex", "discover", "jcb", "diners_club", "maestro", "unknown"]
 CardType = Literal["credit", "debit"]
-GenerateBrand = Literal["visa", "mastercard", "amex", "discover", "jcb", "diners_club", "maestro"]
+GenerateBrand = Literal["random", "visa", "mastercard", "amex", "discover", "jcb", "diners_club", "maestro"]
 
 
 class CardInput(BaseModel):

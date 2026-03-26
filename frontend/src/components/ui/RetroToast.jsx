@@ -3,8 +3,19 @@ import React, { createContext, useContext, useMemo, useState } from 'react';
 const ToastContext = createContext(null);
 
 function ToastCard({ toast, onDismiss }) {
+  const typeClass =
+    toast.type === 'ERROR'
+      ? 'border-tertiary/60'
+      : toast.type === 'SUCCESS'
+        ? 'border-secondary/60'
+        : 'border-primary/60';
+
   return (
-    <div className={`retro-toast-panel ${toast.exiting ? 'retro-toast-panel-exit' : 'retro-toast-panel-enter'}`}>
+    <div
+      className={`retro-toast-panel border ${typeClass} ${toast.exiting ? 'retro-toast-panel-exit' : 'retro-toast-panel-enter'}`}
+      role="status"
+      aria-live="polite"
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-xs tracking-widest text-primary">{toast.type}</div>
@@ -54,8 +65,8 @@ export function ToastProvider({ children }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="pointer-events-none sticky bottom-6 z-50 flex justify-end mt-6">
-        <div className="w-full max-w-md space-y-3 pointer-events-auto">
+      <div className="pointer-events-none fixed top-24 right-4 z-[70] flex justify-end sm:right-6">
+        <div className="w-[min(92vw,28rem)] space-y-3 pointer-events-auto">
           {toasts.map((toast) => (
             <ToastCard key={toast.id} toast={toast} onDismiss={dismiss} />
           ))}
