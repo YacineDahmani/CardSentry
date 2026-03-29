@@ -8,21 +8,53 @@ SUPPORTED_COUNTRIES: dict[str, dict[str, str]] = {
 	"CA": {"name": "Canada", "locale": "en_CA"},
 	"GB": {"name": "United Kingdom", "locale": "en_GB"},
 	"AU": {"name": "Australia", "locale": "en_AU"},
+	"NZ": {"name": "New Zealand", "locale": "en_NZ"},
+	"IE": {"name": "Ireland", "locale": "en_IE"},
 	"DE": {"name": "Germany", "locale": "de_DE"},
 	"FR": {"name": "France", "locale": "fr_FR"},
 	"ES": {"name": "Spain", "locale": "es_ES"},
 	"IT": {"name": "Italy", "locale": "it_IT"},
 	"NL": {"name": "Netherlands", "locale": "nl_NL"},
+	"BE": {"name": "Belgium", "locale": "nl_BE"},
+	"AT": {"name": "Austria", "locale": "de_AT"},
+	"PT": {"name": "Portugal", "locale": "pt_PT"},
+	"PL": {"name": "Poland", "locale": "pl_PL"},
+	"CZ": {"name": "Czech Republic", "locale": "cs_CZ"},
+	"SE": {"name": "Sweden", "locale": "sv_SE"},
+	"NO": {"name": "Norway", "locale": "no_NO"},
+	"DK": {"name": "Denmark", "locale": "da_DK"},
+	"CH": {"name": "Switzerland", "locale": "de_CH"},
 	"BR": {"name": "Brazil", "locale": "pt_BR"},
+	"AR": {"name": "Argentina", "locale": "es_AR"},
+	"CO": {"name": "Colombia", "locale": "es_CO"},
+	"CL": {"name": "Chile", "locale": "es_CL"},
+	"PE": {"name": "Peru", "locale": "es_PE"},
 	"MX": {"name": "Mexico", "locale": "es_MX"},
+	"ZA": {"name": "South Africa", "locale": "en_ZA"},
+	"DZ": {"name": "Algeria", "locale": "fr_FR"},
+	"MA": {"name": "Morocco", "locale": "fr_FR"},
+	"EG": {"name": "Egypt", "locale": "ar_EG"},
+	"NG": {"name": "Nigeria", "locale": "en_NG"},
+	"KE": {"name": "Kenya", "locale": "en_KE"},
 	"IN": {"name": "India", "locale": "en_IN"},
 	"JP": {"name": "Japan", "locale": "ja_JP"},
+	"CN": {"name": "China", "locale": "zh_CN"},
+	"KR": {"name": "South Korea", "locale": "ko_KR"},
+	"ID": {"name": "Indonesia", "locale": "id_ID"},
+	"TH": {"name": "Thailand", "locale": "th_TH"},
+	"VN": {"name": "Vietnam", "locale": "vi_VN"},
+	"PH": {"name": "Philippines", "locale": "en_PH"},
+	"SG": {"name": "Singapore", "locale": "en_SG"},
+	"AE": {"name": "United Arab Emirates", "locale": "en_AE"},
 }
 
 
 @lru_cache(maxsize=32)
 def _get_faker(locale: str) -> Faker:
-	return Faker(locale)
+	try:
+		return Faker(locale)
+	except Exception:
+		return Faker("en_US")
 
 
 def _safe_value(fake: Faker, method_name: str, fallback: str = "") -> str:
@@ -38,18 +70,45 @@ def _safe_value(fake: Faker, method_name: str, fallback: str = "") -> str:
 
 def _build_formatted_address(country_code: str, street: str, city: str, region: str, postal_code: str, country_name: str) -> str:
 	country = country_code.upper()
-	if country == "US":
-		return f"{street}\n{city}, {region} {postal_code}\n{country_name}".strip()
-	if country == "CA":
+	if country in {"US", "CA", "AU", "NZ", "IN", "ZA"}:
 		return f"{street}\n{city}, {region} {postal_code}\n{country_name}".strip()
 	if country == "GB":
 		return f"{street}\n{city}\n{postal_code}\n{country_name}".strip()
-	if country in {"DE", "FR", "ES", "IT", "NL", "BR", "MX"}:
+	if country in {
+		"DE",
+		"FR",
+		"ES",
+		"IT",
+		"NL",
+		"BE",
+		"AT",
+		"PT",
+		"PL",
+		"CZ",
+		"BR",
+		"AR",
+		"CO",
+		"CL",
+		"PE",
+		"MX",
+		"DZ",
+		"MA",
+		"EG",
+	}:
 		return f"{street}\n{postal_code} {city}\n{country_name}".strip()
+	if country in {"SE", "NO", "DK"}:
+		return f"{street}\n{postal_code} {city}\n{country_name}".strip()
+	if country == "CH":
+		return f"{street}\nCH-{postal_code} {city}\n{country_name}".strip()
+	if country in {"SG", "AE", "NG", "KE", "PH"}:
+		line_two = f"{city} {postal_code}".strip()
+		line_three = region or city
+		return f"{street}\n{line_two}\n{line_three}\n{country_name}".strip()
 	if country == "JP":
 		return f"{postal_code}\n{region}{city}{street}\n{country_name}".strip()
-	if country == "IN":
-		return f"{street}\n{city}, {region} {postal_code}\n{country_name}".strip()
+	if country in {"CN", "KR", "ID", "TH", "VN"}:
+		line_two = f"{region} {city} {postal_code}".strip()
+		return f"{street}\n{line_two}\n{country_name}".strip()
 	return f"{street}\n{city} {region} {postal_code}\n{country_name}".strip()
 
 

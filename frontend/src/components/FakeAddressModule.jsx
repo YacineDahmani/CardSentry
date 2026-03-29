@@ -1,8 +1,67 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { MapPinIcon, UserCircleIcon } from '@heroicons/react/24/outline';
+import {
+  ChevronUpDownIcon,
+  GlobeAltIcon,
+  MapPinIcon,
+  UserCircleIcon,
+} from '@heroicons/react/24/outline';
 import { Button } from './ui/Button';
 import { useFakeAddress } from '../hooks/useFakeAddress';
 import { useToast } from './ui/RetroToast';
+
+const POPULAR_COUNTRY_CODES = [
+  'US', 'GB', 'CA', 'AU',
+  'DZ', 'MA', 'ZA',
+  'BR', 'AR', 'CO',
+  'IN', 'JP', 'CN', 'KR', 'SG', 'AE',
+];
+
+const REGION_BY_COUNTRY_CODE = {
+  US: 'North America',
+  CA: 'North America',
+  MX: 'North America',
+  BR: 'South America',
+  AR: 'South America',
+  CO: 'South America',
+  CL: 'South America',
+  PE: 'South America',
+  DZ: 'Africa',
+  MA: 'Africa',
+  EG: 'Africa',
+  NG: 'Africa',
+  KE: 'Africa',
+  ZA: 'Africa',
+  IN: 'Asia',
+  JP: 'Asia',
+  CN: 'Asia',
+  KR: 'Asia',
+  ID: 'Asia',
+  TH: 'Asia',
+  VN: 'Asia',
+  PH: 'Asia',
+  SG: 'Asia',
+  AE: 'Asia',
+  GB: 'Europe',
+  IE: 'Europe',
+  DE: 'Europe',
+  FR: 'Europe',
+  ES: 'Europe',
+  IT: 'Europe',
+  NL: 'Europe',
+  BE: 'Europe',
+  AT: 'Europe',
+  PT: 'Europe',
+  PL: 'Europe',
+  CZ: 'Europe',
+  SE: 'Europe',
+  NO: 'Europe',
+  DK: 'Europe',
+  CH: 'Europe',
+  AU: 'Oceania',
+  NZ: 'Oceania',
+};
+
+const REGION_ORDER = ['Africa', 'Asia', 'Europe', 'North America', 'South America', 'Oceania', 'Other'];
 
 function compactAddress(address) {
   if (!address) return '';
@@ -18,6 +77,7 @@ export const FakeAddressModule = () => {
     error,
     fetchCountries,
     generateIdentity,
+    clearIdentity,
   } = useFakeAddress();
   const [country, setCountry] = useState('US');
   const { success, error: notifyError, info } = useToast();
@@ -29,7 +89,6 @@ export const FakeAddressModule = () => {
       const hasDefault = list.some((item) => item.code === 'US');
       const initial = hasDefault ? 'US' : list[0].code;
       setCountry(initial);
-      await generateIdentity(initial);
     }
 
     load();
@@ -49,10 +108,32 @@ export const FakeAddressModule = () => {
     return countries.find((item) => item.code === country)?.name || country;
   }, [countries, country]);
 
-  async function handleCountryChange(e) {
-    const next = e.target.value;
+  const groupedCountries = useMemo(() => {
+    const groups = new Map(REGION_ORDER.map((region) => [region, []]));
+
+    countries.forEach((item) => {
+      const region = REGION_BY_COUNTRY_CODE[item.code] || 'Other';
+      groups.get(region).push(item);
+    });
+
+    return REGION_ORDER
+      .map((region) => ({ region, items: groups.get(region) }))
+      .filter((group) => group.items.length > 0);
+  }, [countries]);
+
+  const popularCountries = useMemo(() => {
+    return POPULAR_COUNTRY_CODES
+      .map((code) => countries.find((item) => item.code === code))
+      .filter(Boolean);
+  }, [countries]);
+
+  function handleCountrySelect(next) {
     setCountry(next);
-    await generateIdentity(next);
+    clearIdentity();
+  }
+
+  async function handleCountryChange(e) {
+    handleCountrySelect(e.target.value);
   }
 
   async function handleRegenerate() {
@@ -84,20 +165,58 @@ export const FakeAddressModule = () => {
 
       <div className="bg-surface-container noise-overlay clip-punch outline-variant border border-outline-variant p-8 relative max-w-5xl mx-auto space-y-8">
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-6 items-end">
-          <div className="flex flex-col gap-2">
-            <label className="text-gray-400 uppercase tracking-widest text-xs font-mono">Country</label>
-            <select
-              value={country}
-              onChange={handleCountryChange}
-              disabled={loadingCountries || countries.length === 0}
-              className="w-full bg-surface-container-lowest text-primary font-mono text-sm p-3 outline-none border border-outline-variant cursor-pointer appearance-none"
-            >
-              {countries.map((item) => (
-                <option key={item.code} value={item.code}>
-                  {item.name} ({item.code})
-                </option>
-              ))}
-            </select>
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-4">
+              <label className="text-gray-400 uppercase tracking-widest text-xs font-mono">Country</label>
+              <span className="text-[0.65rem] uppercase font-mono tracking-wider text-gray-500">
+                {countries.length} available
+              </span>
+            </div>
+
+            <div className="relative">
+              <GlobeAltIcon className="w-4 h-4 text-primary absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <select
+                value={country}
+                onChange={handleCountryChange}
+                disabled={loadingCountries || countries.length === 0}
+                className="w-full bg-surface-container-lowest text-primary font-mono text-sm py-3 pl-10 pr-10 outline-none border border-outline-variant cursor-pointer appearance-none transition-colors hover:border-primary focus:border-primary"
+              >
+                {groupedCountries.map((group) => (
+                  <optgroup key={group.region} label={group.region}>
+                    {group.items.map((item) => (
+                      <option key={item.code} value={item.code}>
+                        {item.name} ({item.code})
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              <ChevronUpDownIcon className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+
+            {popularCountries.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                {popularCountries.map((item) => {
+                  const active = item.code === country;
+                  return (
+                    <button
+                      key={item.code}
+                      type="button"
+                      onClick={() => handleCountrySelect(item.code)}
+                      disabled={loadingCountries}
+                      className={[
+                        'px-2.5 py-1 text-[0.62rem] uppercase tracking-widest font-mono border transition-colors',
+                        active
+                          ? 'border-primary text-black bg-primary'
+                          : 'border-outline-variant text-gray-400 hover:border-primary hover:text-primary',
+                      ].join(' ')}
+                    >
+                      {item.name}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <Button
@@ -106,7 +225,7 @@ export const FakeAddressModule = () => {
             onClick={handleRegenerate}
             disabled={loadingIdentity || countries.length === 0}
           >
-            {loadingIdentity ? 'GENERATING...' : 'REGENERATE'}
+            {loadingIdentity ? 'GENERATING...' : identity ? 'REGENERATE' : 'GENERATE'}
           </Button>
         </div>
 

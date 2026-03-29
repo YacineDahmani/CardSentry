@@ -69,6 +69,10 @@ export function useFakeAddress() {
     }
   }
 
+  function clearIdentity() {
+    setIdentity(null);
+  }
+
   return {
     countries,
     identity,
@@ -77,5 +81,6 @@ export function useFakeAddress() {
     error,
     fetchCountries,
     generateIdentity,
+    clearIdentity,
   };
 }

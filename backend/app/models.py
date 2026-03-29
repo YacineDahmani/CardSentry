@@ -61,3 +61,24 @@ class GeneratedCard(BaseModel):
 	brand: GenerateBrand
 	type: CardType
 
+
+class SupportedCountry(BaseModel):
+	code: str = Field(min_length=2, max_length=2, description="ISO 3166-1 alpha-2 country code")
+	name: str = Field(description="Display name for the country")
+
+
+class FakeIdentityAddress(BaseModel):
+	street: str
+	city: str
+	region: str
+	postal_code: str
+	country: str
+	formatted: str = Field(description="Multi-line country-formatted address block")
+
+
+class FakeIdentityResponse(BaseModel):
+	country_code: str = Field(min_length=2, max_length=2, description="ISO 3166-1 alpha-2 country code")
+	country: str
+	full_name: str
+	address: FakeIdentityAddress
+

@@ -135,7 +135,7 @@ export const GeneratorModule = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `cardsentry_generated_${Date.now()}.csv`;
+    a.download = `personasentry_generated_${Date.now()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
     success('CSV downloaded', `${cards.length} cards exported`);

@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse
 
 from app.database import get_generation_history, init_db, store_generated_cards
 from app.middleware import configure_cors, configure_rate_limiter
-from app.models import GenerateRequest, ValidateRequest
+from app.models import FakeIdentityResponse, GenerateRequest, SupportedCountry, ValidateRequest
 from app.services.fake_identity import generate_fake_identity, list_supported_countries
 from app.services.bin_lookup import lookup_bin
 from app.services.generator import generate_cards
@@ -17,7 +17,7 @@ from app.services.validator import evaluate_external_consistency, sanitize_numbe
 
 load_dotenv()
 
-app = FastAPI(title="CardSentry API", version="1.0.0")
+app = FastAPI(title="PersonaSentry API", version="1.0.0")
 
 cors_origins = os.getenv("CORS_ORIGINS", "*")
 origins = [origin.strip() for origin in cors_origins.split(",") if origin.strip()]
@@ -110,15 +110,18 @@ async def generation_history(request: Request, limit: int = Query(default=100, g
 	return get_generation_history(limit)
 
 
-@app.get("/fake-address/countries")
+@app.get("/fake-address/countries", response_model=list[SupportedCountry])
 @limiter.limit("60/minute")
-async def fake_address_countries(request: Request) -> list[dict[str, str]]:
+async def fake_address_countries(request: Request) -> list[SupportedCountry]:
 	return list_supported_countries()
 
 
-@app.get("/fake-address/generate")
+@app.get("/fake-address/generate", response_model=FakeIdentityResponse)
 @limiter.limit("60/minute")
-async def fake_address_generate(request: Request, country: str = Query(default="US", min_length=2, max_length=2)) -> dict:
+async def fake_address_generate(
+	request: Request,
+	country: str = Query(default="US", min_length=2, max_length=2),
+) -> FakeIdentityResponse:
 	try:
 		return generate_fake_identity(country)
 	except ValueError as exc:

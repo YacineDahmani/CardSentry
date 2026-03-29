@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 
-DB_PATH = Path(__file__).resolve().parent.parent / "cardsentry.db"
+DB_PATH = Path(__file__).resolve().parent.parent / "personasentry.db"
 
 
 def _connect() -> sqlite3.Connection:
