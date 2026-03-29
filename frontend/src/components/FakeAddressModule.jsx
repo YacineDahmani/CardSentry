@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ChevronUpDownIcon,
   GlobeAltIcon,
+  MagnifyingGlassIcon,
   MapPinIcon,
   UserCircleIcon,
 } from '@heroicons/react/24/outline';
@@ -11,36 +12,44 @@ import { useToast } from './ui/RetroToast';
 
 const POPULAR_COUNTRY_CODES = [
   'US', 'GB', 'CA', 'AU',
+  'DE', 'FR',
   'DZ', 'MA', 'ZA',
-  'BR', 'AR', 'CO',
-  'IN', 'JP', 'CN', 'KR', 'SG', 'AE',
+  'BR', 'AR', 'MX',
+  'IN', 'JP', 'CN', 'KR', 'SG', 'AE', 'SA',
 ];
 
 const REGION_BY_COUNTRY_CODE = {
   US: 'North America',
   CA: 'North America',
   MX: 'North America',
+  PR: 'North America',
   BR: 'South America',
   AR: 'South America',
   CO: 'South America',
   CL: 'South America',
   PE: 'South America',
+  UY: 'South America',
   DZ: 'Africa',
   MA: 'Africa',
   EG: 'Africa',
   NG: 'Africa',
   KE: 'Africa',
+  TZ: 'Africa',
+  GH: 'Africa',
   ZA: 'Africa',
   IN: 'Asia',
   JP: 'Asia',
   CN: 'Asia',
   KR: 'Asia',
   ID: 'Asia',
+  MY: 'Asia',
   TH: 'Asia',
   VN: 'Asia',
   PH: 'Asia',
   SG: 'Asia',
   AE: 'Asia',
+  SA: 'Asia',
+  IL: 'Asia',
   GB: 'Europe',
   IE: 'Europe',
   DE: 'Europe',
@@ -53,6 +62,11 @@ const REGION_BY_COUNTRY_CODE = {
   PT: 'Europe',
   PL: 'Europe',
   CZ: 'Europe',
+  FI: 'Europe',
+  HU: 'Europe',
+  RO: 'Europe',
+  TR: 'Europe',
+  RU: 'Europe',
   SE: 'Europe',
   NO: 'Europe',
   DK: 'Europe',
@@ -62,6 +76,7 @@ const REGION_BY_COUNTRY_CODE = {
 };
 
 const REGION_ORDER = ['Africa', 'Asia', 'Europe', 'North America', 'South America', 'Oceania', 'Other'];
+const REGION_FILTER_OPTIONS = ['All', ...REGION_ORDER, 'Popular'];
 
 function compactAddress(address) {
   if (!address) return '';
@@ -80,6 +95,8 @@ export const FakeAddressModule = () => {
     clearIdentity,
   } = useFakeAddress();
   const [country, setCountry] = useState('US');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [regionFilter, setRegionFilter] = useState('All');
   const { success, error: notifyError, info } = useToast();
 
   useEffect(() => {
@@ -108,10 +125,32 @@ export const FakeAddressModule = () => {
     return countries.find((item) => item.code === country)?.name || country;
   }, [countries, country]);
 
+  const filteredCountries = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+
+    return countries.filter((item) => {
+      const region = REGION_BY_COUNTRY_CODE[item.code] || 'Other';
+      const matchesRegion = regionFilter === 'All'
+        ? true
+        : regionFilter === 'Popular'
+          ? POPULAR_COUNTRY_CODES.includes(item.code)
+          : region === regionFilter;
+
+      if (!matchesRegion) return false;
+      if (!query) return true;
+
+      return (
+        item.name.toLowerCase().includes(query)
+        || item.code.toLowerCase().includes(query)
+        || region.toLowerCase().includes(query)
+      );
+    });
+  }, [countries, searchTerm, regionFilter]);
+
   const groupedCountries = useMemo(() => {
     const groups = new Map(REGION_ORDER.map((region) => [region, []]));
 
-    countries.forEach((item) => {
+    filteredCountries.forEach((item) => {
       const region = REGION_BY_COUNTRY_CODE[item.code] || 'Other';
       groups.get(region).push(item);
     });
@@ -119,13 +158,15 @@ export const FakeAddressModule = () => {
     return REGION_ORDER
       .map((region) => ({ region, items: groups.get(region) }))
       .filter((group) => group.items.length > 0);
-  }, [countries]);
+  }, [filteredCountries]);
 
   const popularCountries = useMemo(() => {
     return POPULAR_COUNTRY_CODES
       .map((code) => countries.find((item) => item.code === code))
       .filter(Boolean);
   }, [countries]);
+
+  const hasVisibleCountries = filteredCountries.length > 0;
 
   function handleCountrySelect(next) {
     setCountry(next);
@@ -169,8 +210,31 @@ export const FakeAddressModule = () => {
             <div className="flex items-center justify-between gap-4">
               <label className="text-gray-400 uppercase tracking-widest text-xs font-mono">Country</label>
               <span className="text-[0.65rem] uppercase font-mono tracking-wider text-gray-500">
-                {countries.length} available
+                {filteredCountries.length}/{countries.length} visible
               </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2">
+              <div className="relative">
+                <MagnifyingGlassIcon className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search by country, code, or region"
+                  className="w-full bg-surface-container-lowest text-primary placeholder:text-gray-500 font-mono text-xs py-2.5 pl-10 pr-3 outline-none border border-outline-variant transition-colors hover:border-primary focus:border-primary"
+                />
+              </div>
+
+              <select
+                value={regionFilter}
+                onChange={(e) => setRegionFilter(e.target.value)}
+                className="bg-surface-container-lowest text-gray-300 font-mono text-xs py-2.5 px-3 outline-none border border-outline-variant cursor-pointer transition-colors hover:border-primary focus:border-primary"
+              >
+                {REGION_FILTER_OPTIONS.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
             </div>
 
             <div className="relative">
@@ -178,18 +242,22 @@ export const FakeAddressModule = () => {
               <select
                 value={country}
                 onChange={handleCountryChange}
-                disabled={loadingCountries || countries.length === 0}
+                disabled={loadingCountries || countries.length === 0 || !hasVisibleCountries}
                 className="w-full bg-surface-container-lowest text-primary font-mono text-sm py-3 pl-10 pr-10 outline-none border border-outline-variant cursor-pointer appearance-none transition-colors hover:border-primary focus:border-primary"
               >
-                {groupedCountries.map((group) => (
-                  <optgroup key={group.region} label={group.region}>
-                    {group.items.map((item) => (
-                      <option key={item.code} value={item.code}>
-                        {item.name} ({item.code})
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
+                {hasVisibleCountries ? (
+                  groupedCountries.map((group) => (
+                    <optgroup key={group.region} label={group.region}>
+                      {group.items.map((item) => (
+                        <option key={item.code} value={item.code}>
+                          {item.name} ({item.code})
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))
+                ) : (
+                  <option value={country}>No countries match current filters</option>
+                )}
               </select>
               <ChevronUpDownIcon className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>

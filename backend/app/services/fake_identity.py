@@ -1,11 +1,13 @@
 from functools import lru_cache
 
 from faker import Faker
+from faker.config import AVAILABLE_LOCALES
 
 
 SUPPORTED_COUNTRIES: dict[str, dict[str, str]] = {
 	"US": {"name": "United States", "locale": "en_US"},
 	"CA": {"name": "Canada", "locale": "en_CA"},
+	"PR": {"name": "Puerto Rico", "locale": "es_PR"},
 	"GB": {"name": "United Kingdom", "locale": "en_GB"},
 	"AU": {"name": "Australia", "locale": "en_AU"},
 	"NZ": {"name": "New Zealand", "locale": "en_NZ"},
@@ -20,6 +22,11 @@ SUPPORTED_COUNTRIES: dict[str, dict[str, str]] = {
 	"PT": {"name": "Portugal", "locale": "pt_PT"},
 	"PL": {"name": "Poland", "locale": "pl_PL"},
 	"CZ": {"name": "Czech Republic", "locale": "cs_CZ"},
+	"FI": {"name": "Finland", "locale": "fi_FI"},
+	"HU": {"name": "Hungary", "locale": "hu_HU"},
+	"RO": {"name": "Romania", "locale": "ro_RO"},
+	"TR": {"name": "Turkey", "locale": "tr_TR"},
+	"RU": {"name": "Russia", "locale": "ru_RU"},
 	"SE": {"name": "Sweden", "locale": "sv_SE"},
 	"NO": {"name": "Norway", "locale": "no_NO"},
 	"DK": {"name": "Denmark", "locale": "da_DK"},
@@ -30,31 +37,41 @@ SUPPORTED_COUNTRIES: dict[str, dict[str, str]] = {
 	"CL": {"name": "Chile", "locale": "es_CL"},
 	"PE": {"name": "Peru", "locale": "es_PE"},
 	"MX": {"name": "Mexico", "locale": "es_MX"},
+	"UY": {"name": "Uruguay", "locale": "es_UY"},
 	"ZA": {"name": "South Africa", "locale": "en_ZA"},
 	"DZ": {"name": "Algeria", "locale": "fr_FR"},
 	"MA": {"name": "Morocco", "locale": "fr_FR"},
 	"EG": {"name": "Egypt", "locale": "ar_EG"},
 	"NG": {"name": "Nigeria", "locale": "en_NG"},
 	"KE": {"name": "Kenya", "locale": "en_KE"},
+	"TZ": {"name": "Tanzania", "locale": "en_TZ"},
+	"GH": {"name": "Ghana", "locale": "en_GH"},
 	"IN": {"name": "India", "locale": "en_IN"},
 	"JP": {"name": "Japan", "locale": "ja_JP"},
 	"CN": {"name": "China", "locale": "zh_CN"},
 	"KR": {"name": "South Korea", "locale": "ko_KR"},
 	"ID": {"name": "Indonesia", "locale": "id_ID"},
+	"MY": {"name": "Malaysia", "locale": "en_MY"},
 	"TH": {"name": "Thailand", "locale": "th_TH"},
 	"VN": {"name": "Vietnam", "locale": "vi_VN"},
 	"PH": {"name": "Philippines", "locale": "en_PH"},
 	"SG": {"name": "Singapore", "locale": "en_SG"},
 	"AE": {"name": "United Arab Emirates", "locale": "en_AE"},
+	"SA": {"name": "Saudi Arabia", "locale": "ar_SA"},
+	"IL": {"name": "Israel", "locale": "he_IL"},
+}
+
+
+AVAILABLE_COUNTRIES: dict[str, dict[str, str]] = {
+	code: data
+	for code, data in SUPPORTED_COUNTRIES.items()
+	if data["locale"] in AVAILABLE_LOCALES
 }
 
 
 @lru_cache(maxsize=32)
 def _get_faker(locale: str) -> Faker:
-	try:
-		return Faker(locale)
-	except Exception:
-		return Faker("en_US")
+	return Faker(locale)
 
 
 def _safe_value(fake: Faker, method_name: str, fallback: str = "") -> str:
@@ -85,12 +102,18 @@ def _build_formatted_address(country_code: str, street: str, city: str, region: 
 		"PT",
 		"PL",
 		"CZ",
+		"FI",
+		"HU",
+		"RO",
+		"TR",
+		"RU",
 		"BR",
 		"AR",
 		"CO",
 		"CL",
 		"PE",
 		"MX",
+		"UY",
 		"DZ",
 		"MA",
 		"EG",
@@ -100,7 +123,7 @@ def _build_formatted_address(country_code: str, street: str, city: str, region: 
 		return f"{street}\n{postal_code} {city}\n{country_name}".strip()
 	if country == "CH":
 		return f"{street}\nCH-{postal_code} {city}\n{country_name}".strip()
-	if country in {"SG", "AE", "NG", "KE", "PH"}:
+	if country in {"SG", "AE", "NG", "KE", "PH", "TZ", "GH", "MY", "SA", "IL"}:
 		line_two = f"{city} {postal_code}".strip()
 		line_three = region or city
 		return f"{street}\n{line_two}\n{line_three}\n{country_name}".strip()
@@ -116,8 +139,12 @@ def _build_identity(country_code: str) -> dict:
 	code = country_code.upper()
 	if code not in SUPPORTED_COUNTRIES:
 		raise ValueError(f"Unsupported country '{country_code}'.")
+	if code not in AVAILABLE_COUNTRIES:
+		raise ValueError(
+			f"Country '{country_code}' is currently unavailable with this Faker version."
+		)
 
-	config = SUPPORTED_COUNTRIES[code]
+	config = AVAILABLE_COUNTRIES[code]
 	fake = _get_faker(config["locale"])
 
 	full_name = _safe_value(fake, "name")
@@ -157,7 +184,7 @@ def _build_identity(country_code: str) -> dict:
 def list_supported_countries() -> list[dict[str, str]]:
 	return [
 		{"code": code, "name": data["name"]}
-		for code, data in sorted(SUPPORTED_COUNTRIES.items(), key=lambda item: item[1]["name"])
+		for code, data in sorted(AVAILABLE_COUNTRIES.items(), key=lambda item: item[1]["name"])
 	]
 
 
