@@ -1,6 +1,8 @@
-# CardSentry
+# PersonaSentry
 
-CardSentry is a developer-focused credit card utility for generating and validating test card data. It combines a FastAPI backend, a React/Vite frontend, local SQLite caching, and optional BIN enrichment through a third-party lookup service.
+PersonaSentry is a retro-styled testing suite for payment QA and identity-safe sandbox workflows. It helps engineering and QA teams generate realistic test card data, validate payloads quickly, and simulate profile details for end-to-end checkout testing.
+
+
 
 ## What It Does
 
@@ -18,7 +20,7 @@ CardSentry is a developer-focused credit card utility for generating and validat
 ## Repository Layout
 
 ```text
-CardSentry/
+PersonaSentry/
 ├── backend/
 │   ├── app/
 │   │   ├── main.py
@@ -51,7 +53,7 @@ CardSentry/
 
 ## Environment Configuration
 
-CardSentry uses environment variables for both backend and frontend. You should create `.env` files based on the provided `.env.example` templates in each respective directory.
+PersonaSentry uses environment variables for both backend and frontend. You should create `.env` files based on the provided `.env.example` templates in each respective directory.
 
 ### Backend Variables (`backend/.env`)
 
@@ -191,7 +193,7 @@ Returns the most recent generated cards from SQLite.
 
 ## Behavior Notes
 
-- BIN lookups are cached locally in `cardsentry.db`.
+- BIN lookups are cached locally in `personasentry.db`.
 - Validation and generation endpoints are rate-limited.
 - If BIN lookup is unavailable, validation still completes and reports partial results.
 - The frontend can be pointed at a different backend through `VITE_API_URL`.
@@ -205,4 +207,4 @@ Returns the most recent generated cards from SQLite.
 
 ## Disclaimer
 
-CardSentry is intended for development and testing only. Generated card numbers are not real payment cards and cannot be used for actual transactions.
+PersonaSentry is intended for development and testing only. Generated card numbers are not real payment cards and cannot be used for actual transactions.
