@@ -1,7 +1,7 @@
 import React from 'react';
 
 export const TopNav = ({ activeTab, setActiveTab }) => {
-  const tabs = ['GENERATOR', 'VALIDATOR', 'ABOUT'];
+  const tabs = ['GENERATOR', 'VALIDATOR', 'FAKE_ADDRESS', 'ABOUT'];
 
   return (
     <nav className="border-b border-surface-container-high bg-surface/80 backdrop-blur-md flex items-center justify-between px-6 py-4 relative z-10 w-full transition-all duration-300">

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { TopNav } from './components/TopNav';
 import { ValidatorModule } from './components/ValidatorModule';
 import { GeneratorModule } from './components/GeneratorModule';
+import { FakeAddressModule } from './components/FakeAddressModule';
 import { About } from './components/About';
 import { ToastProvider } from './components/ui/RetroToast';
 
@@ -24,6 +25,7 @@ function App() {
           <div className="max-w-7xl mx-auto animate-scan-in app-power-on">
             {activeTab === 'VALIDATOR' && <ValidatorModule />}
             {activeTab === 'GENERATOR' && <GeneratorModule />}
+            {activeTab === 'FAKE_ADDRESS' && <FakeAddressModule />}
             {activeTab === 'ABOUT' && <About />}
           </div>
         </ToastProvider>

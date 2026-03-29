@@ -9,6 +9,7 @@ from fastapi.responses import StreamingResponse
 from app.database import get_generation_history, init_db, store_generated_cards
 from app.middleware import configure_cors, configure_rate_limiter
 from app.models import GenerateRequest, ValidateRequest
+from app.services.fake_identity import generate_fake_identity, list_supported_countries
 from app.services.bin_lookup import lookup_bin
 from app.services.generator import generate_cards
 from app.services.validator import evaluate_external_consistency, sanitize_number, validate_card
@@ -107,4 +108,19 @@ async def generate(payload: GenerateRequest, request: Request) -> list[dict]:
 @limiter.limit("30/minute")
 async def generation_history(request: Request, limit: int = Query(default=100, ge=1, le=500)) -> list[dict]:
 	return get_generation_history(limit)
+
+
+@app.get("/fake-address/countries")
+@limiter.limit("60/minute")
+async def fake_address_countries(request: Request) -> list[dict[str, str]]:
+	return list_supported_countries()
+
+
+@app.get("/fake-address/generate")
+@limiter.limit("60/minute")
+async def fake_address_generate(request: Request, country: str = Query(default="US", min_length=2, max_length=2)) -> dict:
+	try:
+		return generate_fake_identity(country)
+	except ValueError as exc:
+		raise HTTPException(status_code=400, detail=str(exc)) from exc
 

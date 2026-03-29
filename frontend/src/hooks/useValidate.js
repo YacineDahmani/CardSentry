@@ -3,10 +3,6 @@ import { useState } from 'react';
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 function buildValidateErrorMessage(err, statusCode) {
-  if (err instanceof SyntaxError) {
-    return 'Received malformed or incomplete data stream from the validation server.';
-  }
-
   const message = typeof err?.message === 'string' ? err.message.trim() : '';
 
   if (message) {
@@ -20,7 +16,7 @@ function buildValidateErrorMessage(err, statusCode) {
     return `Validation failed (HTTP ${statusCode}).`;
   }
 
-  return 'Validation request failed due to an unknown error.';
+  return 'Validation request failed';
 }
 
 export function useValidate() {
